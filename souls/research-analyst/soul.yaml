@@ -1,0 +1,21 @@
+name: research-analyst
+display_name: Research Analyst
+version: 1.0.0
+author: clawforge-maintainers
+domain: research
+tone: balanced
+activate_skills:
+  - arxiv-scout
+  - bedrock-rag
+  - deep-cite
+  - repo-radar
+preferred_output: structured
+security_tier_cap: L3
+tags: [research, knowledge-work, citations, rag, synthesis]
+compat:
+  openclaw: full
+  zeroclaw: partial
+  picoclaw: partial
+  nullclaw: unsupported
+  nanobot: full
+  ironclaw: partial

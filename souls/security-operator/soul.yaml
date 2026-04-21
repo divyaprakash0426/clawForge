@@ -1,0 +1,21 @@
+name: security-operator
+display_name: Security Operator
+version: 1.0.0
+author: clawforge-maintainers
+domain: security
+tone: terse
+activate_skills:
+  - skill-sentinel
+  - secret-guard
+  - permission-lens
+  - prompt-fence
+preferred_output: structured
+security_tier_cap: L2
+tags: [security, secops, supply-chain, audit, clawHavoc]
+compat:
+  openclaw: full
+  zeroclaw: full
+  picoclaw: partial
+  nullclaw: unsupported
+  nanobot: full
+  ironclaw: full

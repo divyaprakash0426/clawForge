@@ -1,0 +1,49 @@
+name: Compatibility checks
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    paths:
+      - "skills/**"
+      - "install.sh"
+      - "install-skill.sh"
+      - "tools/**"
+      - ".github/workflows/compat-test.yml"
+
+jobs:
+  compat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validator dependencies
+        run: pip install pyyaml
+
+      - name: Check shell syntax
+        run: |
+          bash -n install.sh install-skill.sh tools/forge-skill.sh tools/skill-lib.sh
+          while IFS= read -r script; do
+            bash -n "$script"
+          done < <(find skills -type f \( -name '*.sh' \))
+
+      - name: Validate skill metadata
+        run: python3 tools/validate_skills.py
+
+      - name: Exercise installer flows
+        run: |
+          tmpdir="$(mktemp -d)"
+          ./install.sh --variant openclaw --skills arch-sentry,skill-sentinel --dest "$tmpdir/openclaw"
+          ./install-skill.sh --variant zeroclaw --dest "$tmpdir/zeroclaw" tf-copilot
+          ./install-skill.sh --variant picoclaw --dest "$tmpdir/picoclaw" permission-lens
+          ./install-skill.sh --variant nullclaw --dest "$tmpdir/nullclaw" permission-lens
+          ./install-skill.sh --variant nanobot --dest "$tmpdir/nanobot" arxiv-scout
+          ./install-skill.sh --variant ironclaw --dest "$tmpdir/ironclaw" deep-cite

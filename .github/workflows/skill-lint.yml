@@ -1,0 +1,114 @@
+name: Skill lint
+
+on:
+  pull_request:
+    paths:
+      - "skills/**/SKILL.md"
+      - "tools/validate_skills.py"
+      - ".github/workflows/skill-lint.yml"
+
+jobs:
+  lint-skills:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validator dependencies
+        run: pip install pyyaml
+
+      - name: Validate skill frontmatter
+        run: python3 tools/validate_skills.py
+
+      - name: Check L3 review label for changed skills
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+            const changed = execSync(
+              `git diff --name-only origin/${context.payload.pull_request.base.ref}...HEAD -- 'skills/**/SKILL.md'`,
+              { encoding: 'utf8' }
+            ).trim().split('\n').filter(Boolean);
+
+            if (changed.length === 0) {
+              core.info('No changed skill definitions detected.');
+              return;
+            }
+
+            const l3Skills = [];
+            for (const file of changed) {
+              const text = fs.readFileSync(file, 'utf8');
+              if (!text.match(/^---\n[\s\S]*?\n---/)) {
+                core.setFailed(`Missing frontmatter in ${file}`);
+                return;
+              }
+              const tierMatch = text.match(/^[ \t]*security_tier:\s*(L[123])\s*$/m);
+              const nameMatch = text.match(/^name:\s*(.+)$/m);
+              if (tierMatch?.[1] === 'L3') {
+                l3Skills.push(nameMatch?.[1]?.trim() || file);
+              }
+            }
+
+            if (l3Skills.length === 0) {
+              core.info('No L3 skill changes detected.');
+              return;
+            }
+
+            const labels = context.payload.pull_request.labels.map(label => label.name);
+            if (!labels.includes('human-review')) {
+              core.setFailed(
+                `Changed L3 skills require the 'human-review' label. Affected skills: ${l3Skills.join(', ')}`
+              );
+            }
+
+      - name: Build compatibility comment body
+        run: python3 tools/validate_skills.py --markdown-table > compat-table.md
+
+      - name: Post compatibility matrix comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = [
+              '## ClawForge compatibility matrix',
+              '',
+              fs.readFileSync('compat-table.md', 'utf8'),
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const marker = '## ClawForge compatibility matrix';
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+            });
+
+            const existing = comments.find(comment => comment.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
