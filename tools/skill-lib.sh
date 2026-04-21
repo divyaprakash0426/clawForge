@@ -274,6 +274,141 @@ selection_to_skill_array() {
   eval "$array_name=(\"\${resolved[@]}\")"
 }
 
+# ---------------------------------------------------------------------------
+# Soul utility functions
+# ---------------------------------------------------------------------------
+
+soul_dir() {
+  local root
+  root="$(clawforge_root)"
+  printf '%s/souls/%s\n' "$root" "$1"
+}
+
+soul_yaml_file() {
+  printf '%s/soul.yaml\n' "$(soul_dir "$1")"
+}
+
+list_all_souls() {
+  local root
+  root="$(clawforge_root)"
+  find "$root/souls" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort
+}
+
+assert_known_soul() {
+  if [ ! -f "$(soul_yaml_file "$1")" ]; then
+    echo "Unknown soul '$1'." >&2
+    return 1
+  fi
+}
+
+variant_soul_dir() {
+  case "$1" in
+    openclaw) echo "${HOME}/.openclaw/souls" ;;
+    zeroclaw) echo "${HOME}/.zeroclaw/souls" ;;
+    picoclaw) echo "${HOME}/.picoclaw/souls" ;;
+    nullclaw) echo "${HOME}/.nullclaw/souls" ;;
+    nanobot) echo "${HOME}/.nanobot/souls" ;;
+    ironclaw) echo "${HOME}/.ironclaw/souls" ;;
+    *)
+      echo "Unknown variant: $1" >&2
+      return 1
+      ;;
+  esac
+}
+
+soul_yaml_compat_status() {
+  local file="$1"
+  local variant="$2"
+  awk -v variant="$variant" '
+    BEGIN {in_compat = 0}
+    /^compat:/ { in_compat = 1; next }
+    in_compat && /^[[:space:]]+[a-z]/ {
+      line = $0
+      gsub(/^[[:space:]]+/, "", line)
+      key = substr(line, 1, index(line, ":") - 1)
+      val = line
+      sub(/^[^:]+:[[:space:]]*/, "", val)
+      gsub(/[[:space:]]/, "", val)
+      if (key == variant) { print val; exit }
+    }
+    in_compat && /^[^[:space:]]/ { in_compat = 0 }
+  ' "$file"
+}
+
+soul_compat_status() {
+  soul_yaml_compat_status "$(soul_yaml_file "$1")" "$2"
+}
+
+soul_is_supported() {
+  local soul="$1"
+  local variant="$2"
+  local status
+  status="$(soul_compat_status "$soul" "$variant")"
+  [ -n "$status" ] && [ "$status" != "unsupported" ]
+}
+
+assert_soul_supported() {
+  local soul="$1"
+  local variant="$2"
+  local status
+  status="$(soul_compat_status "$soul" "$variant")"
+  if [ -z "$status" ]; then
+    echo "Soul '$soul' is missing compatibility data for '$variant'." >&2
+    return 1
+  fi
+  if [ "$status" = "unsupported" ]; then
+    echo "Soul '$soul' is marked unsupported for $(variant_label "$variant")." >&2
+    return 1
+  fi
+}
+
+soul_display_name() {
+  awk '/^display_name:/ {sub(/^display_name:[[:space:]]*/, ""); print; exit}' "$(soul_yaml_file "$1")"
+}
+
+print_soul_listing() {
+  local variant="$1"
+  local soul
+  local status
+  local display_name
+  local index=1
+
+  echo "Available souls for $(variant_label "$variant"):"
+  for soul in $(list_all_souls); do
+    status="$(soul_compat_status "$soul" "$variant")"
+    [ -n "$status" ] || continue
+    [ "$status" = "unsupported" ] && continue
+    display_name="$(soul_display_name "$soul")"
+    printf '  %2d. %-22s [%s] %s\n' "$index" "$soul" "$status" "$display_name"
+    index=$((index + 1))
+  done
+}
+
+install_soul_dir() {
+  local soul="$1"
+  local dest_dir="$2"
+  local force="$3"
+  local source_dir
+  local target_dir
+  local backup_dir
+
+  source_dir="$(soul_dir "$soul")"
+  target_dir="${dest_dir}/${soul}"
+
+  if [ -e "$target_dir" ]; then
+    if [ "$force" -ne 1 ]; then
+      echo "Soul '$soul' already exists at $target_dir. Re-run with --force to replace it." >&2
+      return 1
+    fi
+    backup_dir="${target_dir}.bak.$(date +%Y%m%d%H%M%S)"
+    mv "$target_dir" "$backup_dir"
+    echo "Backed up existing '$soul' to $backup_dir"
+  fi
+
+  cp -R "$source_dir" "$target_dir"
+}
+
+# ---------------------------------------------------------------------------
 install_skill_dir() {
   local skill="$1"
   local dest_dir="$2"

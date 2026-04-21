@@ -1,0 +1,73 @@
+name: Soul lint
+
+on:
+  pull_request:
+    paths:
+      - "souls/**/soul.yaml"
+      - "souls/**/SOUL.md"
+      - "tools/validate_souls.py"
+      - ".github/workflows/soul-lint.yml"
+
+jobs:
+  lint-souls:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validator dependencies
+        run: pip install pyyaml
+
+      - name: Validate soul frontmatter
+        run: python3 tools/validate_souls.py
+
+      - name: Build soul compatibility table
+        run: python3 tools/validate_souls.py --markdown-table > soul-compat-table.md
+
+      - name: Post soul compatibility matrix comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = [
+              '## ClawForge soul compatibility matrix',
+              '',
+              fs.readFileSync('soul-compat-table.md', 'utf8'),
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const marker = '## ClawForge soul compatibility matrix';
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+            });
+
+            const existing = comments.find(comment => comment.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body,
+              });
+            }
