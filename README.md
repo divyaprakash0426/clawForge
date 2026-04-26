@@ -44,7 +44,7 @@ Install a single skill directly:
 | NanoBot | Python | `~/.nanobot/skills` |
 | IronClaw | TypeScript + WASM | `~/.ironclaw/skills` |
 
-See [`docs/variant-guide.md`](docs/variant-guide.md) for the full compatibility notes.
+See [`docs/variant-guide.md`](docs/variant-guide.md) for the full compatibility notes and the recommended cross-architecture proof model.
 
 ## Skill catalog
 

