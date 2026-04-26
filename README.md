@@ -2,7 +2,7 @@
 
 ClawForge is a curated, cross-variant-compatible skill hub for the Claw ecosystem. It ships **30 battle-tested skills**, a shared `SKILL.md` standard, security-first review patterns, persona packs (`souls/`), and scaffolding tooling — the everything-claude-code moment for the full Claw variant landscape.
 
-> 📰 Read the design rationale: [Why the Claw ecosystem needs a skill commons](docs/dev-article-draft.md)
+> 📰 Read the design rationale: [Why the Claw ecosystem needs a skill commons](https://dev.to/divyaprakash_d_2d5d085bd4/why-the-claw-ecosystem-needs-a-skill-commons-and-how-i-built-one-1caa)
 
 ## Why ClawForge
 
